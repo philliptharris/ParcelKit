@@ -65,6 +65,7 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
 }
 
 #pragma mark - Entity and Table map
+
 - (void)setTablesForEntityNamesWithDictionary:(NSDictionary *)keyedTables
 {
     for (NSString *entityName in [self entityNames]) {
@@ -73,6 +74,7 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
 
     __weak typeof(self) weakSelf = self;
     [keyedTables enumerateKeysAndObjectsUsingBlock:^(NSString *entityName, NSString *tableID, BOOL *stop) {
+        
         typeof(self) strongSelf = weakSelf; if (!strongSelf) return;
         [strongSelf setTable:tableID forEntityName:entityName];
     }];
@@ -130,15 +132,18 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
     
     __weak typeof(self) weakSelf = self;
     [self.datastore addObserver:self block:^ {
+        
         typeof(self) strongSelf = weakSelf; if (!strongSelf) return;
         if (![strongSelf isObserving]) return;
         
         if (strongSelf.datastore.status & DBDatastoreIncoming) {
+            
             DBError *error = nil;
             NSDictionary *changes = [strongSelf.datastore sync:&error];
             if (changes) {
                 [strongSelf updateCoreDataWithDatastoreChanges:changes];
-            } else {
+            }
+            else {
                 NSLog(@"Error syncing with Dropbox: %@", error);
             }
         }
@@ -147,8 +152,8 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(managedObjectContextWillSave:) name:NSManagedObjectContextWillSaveNotification object:self.managedObjectContext];
 }
 
-- (void)stopObserving
-{
+- (void)stopObserving {
+    
     if (![self isObserving]) return;
     self.observing = NO;
     
@@ -157,9 +162,12 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
 }
 
 #pragma mark - Updating Core Data
-- (void)updateCoreDataWithDatastoreChanges:(NSDictionary *)changes
-{
-    if ([changes count] == 0) return;
+
+- (void)updateCoreDataWithDatastoreChanges:(NSDictionary *)changes {
+    
+    if ([changes count] == 0) {
+        return;
+    }
     
     NSManagedObjectContext *managedObjectContext = [[NSManagedObjectContext alloc] initWithConcurrencyType:NSPrivateQueueConcurrencyType];
     [managedObjectContext setPersistentStoreCoordinator:[self.managedObjectContext persistentStoreCoordinator]];
@@ -167,10 +175,19 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
     
     __weak typeof(self) weakSelf = self;
     [changes enumerateKeysAndObjectsUsingBlock:^(NSString *tableID, NSArray *records, BOOL *stop) {
-        typeof(self) strongSelf = weakSelf; if (!strongSelf) return;
+        
+        typeof(self) strongSelf = weakSelf;
+        
+        if (!strongSelf) {
+            return;
+        }
+        
         for (DBRecord *record in records) {
+            
             NSString *entityName = [strongSelf entityNameForTable:tableID];
-            if (!entityName) continue;
+            if (!entityName) {
+                continue;
+            }
             
             NSFetchRequest *fetchRequest = [NSFetchRequest fetchRequestWithEntityName:entityName];
             [fetchRequest setPredicate:[NSPredicate predicateWithFormat:@"%K == %@", strongSelf.syncAttributeName, record.recordId]];
@@ -179,13 +196,15 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
             NSError *error = nil;
             NSArray *managedObjects = [managedObjectContext executeFetchRequest:fetchRequest error:&error];
             if (managedObjects)  {
+                
                 NSManagedObject *managedObject = [managedObjects lastObject];
                 
                 if ([record isDeleted]) {
                     if (managedObject) {
                         [managedObjectContext deleteObject:managedObject];
                     }
-                } else {
+                }
+                else {
                     if (!managedObject) {
                         managedObject = [NSEntityDescription insertNewObjectForEntityForName:entityName inManagedObjectContext:managedObjectContext];
                         [managedObject setValue:record.recordId forKey:strongSelf.syncAttributeName];
@@ -193,7 +212,8 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
                     
                     [managedObject pk_setPropertiesWithRecord:record syncAttributeName:strongSelf.syncAttributeName];
                 }
-            } else {
+            }
+            else {
                 NSLog(@"Error executing fetch request: %@", error);
             }
         }
@@ -209,30 +229,38 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
     }
 }
 
-- (void)syncManagedObjectContextDidSave:(NSNotification *)notification
-{
+- (void)syncManagedObjectContextDidSave:(NSNotification *)notification {
     [self.managedObjectContext mergeChangesFromContextDidSaveNotification:notification];
 }
 
 #pragma mark - Updating Datastore
-- (void)managedObjectContextWillSave:(NSNotification *)notification
-{
-    if (![self isObserving]) return;
+
+- (void)managedObjectContextWillSave:(NSNotification *)notification {
+    
+    if (![self isObserving]) {
+        return;
+    }
     
     NSManagedObjectContext *managedObjectContext = notification.object;
-    if (self.managedObjectContext != managedObjectContext) return;
+    if (self.managedObjectContext != managedObjectContext) {
+        return;
+    }
     
     NSSet *deletedObjects = [managedObjectContext deletedObjects];
     for (NSManagedObject *managedObject in deletedObjects) {
+        
         NSString *tableID = [self tableForEntityName:[[managedObject entity] name]];
-        if (!tableID) continue;
+        if (!tableID) {
+            continue;
+        }
         
         DBTable *table = [self.datastore getTable:tableID];
         DBError *error = nil;
         DBRecord *record = [table getRecord:[managedObject primitiveValueForKey:self.syncAttributeName] error:&error];
         if (record) {
             [record deleteRecord];
-        } else if (error) {
+        }
+        else if (error) {
             NSLog(@"Error getting datastore record: %@", error);
         }
     };
@@ -254,22 +282,26 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
     NSDictionary *changes = [self.datastore sync:&error];
     if (changes) {
         [self updateCoreDataWithDatastoreChanges:changes];
-    } else {
+    }
+    else {
         NSLog(@"Error syncing with Dropbox: %@", error);
     }
 }
 
-- (void)updateDatastoreWithManagedObject:(NSManagedObject *)managedObject
-{
+- (void)updateDatastoreWithManagedObject:(NSManagedObject *)managedObject {
+    
     NSString *tableID = [self tableForEntityName:[[managedObject entity] name]];
-    if (!tableID) return;
+    if (!tableID) {
+        return;
+    }
     
     DBTable *table = [self.datastore getTable:tableID];
     DBError *error = nil;
     DBRecord *record = [table getOrInsertRecord:[managedObject valueForKey:self.syncAttributeName] fields:nil inserted:NULL error:&error];
     if (record) {
         [record pk_setFieldsWithManagedObject:managedObject syncAttributeName:self.syncAttributeName];
-    } else {
+    }
+    else {
         NSLog(@"Error getting or inserting datatore record: %@", error);
     }
 }
