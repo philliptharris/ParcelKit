@@ -79,6 +79,9 @@
                     NSSet *previousIdentifiers = [[NSMutableSet alloc] initWithArray:[fieldList values]];
                     NSSet *currentIdentifiers = [[NSSet alloc] initWithArray:[[valueInCoreData allObjects] valueForKey:syncAttributeName]];
                     
+                    // Start with the set of syncID's currently in this list
+                    // Take out the ones currently in the core data to-many relationship
+                    // We are left with the ones that got deleted
                     NSMutableSet *deletedIdentifiers = [[NSMutableSet alloc] initWithSet:previousIdentifiers];
                     [deletedIdentifiers minusSet:currentIdentifiers];
                     for (NSString *recordId in deletedIdentifiers) {
@@ -88,6 +91,9 @@
                         }
                     }
                     
+                    // Start with the ones currently in the core data to-many relationship
+                    // Take out the ones that are already in the list
+                    // We are left with the ones that got added
                     NSMutableSet *insertedIdentifiers = [[NSMutableSet alloc] initWithSet:currentIdentifiers];
                     [insertedIdentifiers minusSet:previousIdentifiers];
                     for (NSString *recordId in insertedIdentifiers) {

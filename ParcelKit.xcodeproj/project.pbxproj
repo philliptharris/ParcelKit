@@ -55,6 +55,7 @@
 		ABE87A4517935C0400E2A1DA /* PKSyncManager.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = ABE87A241793556400E2A1DA /* PKSyncManager.h */; };
 		ABE87A4617935C0400E2A1DA /* NSManagedObject+ParcelKit.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = ABE87A261793556400E2A1DA /* NSManagedObject+ParcelKit.h */; };
 		ABE87A4917935C0400E2A1DA /* DBRecord+ParcelKit.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = ABE87A281793556400E2A1DA /* DBRecord+ParcelKit.h */; };
+		F40475D617BB23CB00AE23B6 /* PKIndexedRelationshipInfo.m in Sources */ = {isa = PBXBuildFile; fileRef = F40475D517BB23CB00AE23B6 /* PKIndexedRelationshipInfo.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -136,6 +137,8 @@
 		ABE87A291793556400E2A1DA /* DBRecord+ParcelKit.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "DBRecord+ParcelKit.m"; sourceTree = "<group>"; };
 		ABE87A361793558A00E2A1DA /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
 		ABE87A3A179355F400E2A1DA /* Dropbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = Dropbox.framework; sourceTree = "<group>"; };
+		F40475D417BB23CB00AE23B6 /* PKIndexedRelationshipInfo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PKIndexedRelationshipInfo.h; sourceTree = "<group>"; };
+		F40475D517BB23CB00AE23B6 /* PKIndexedRelationshipInfo.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PKIndexedRelationshipInfo.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -271,6 +274,8 @@
 				ABE87A271793556400E2A1DA /* NSManagedObject+ParcelKit.m */,
 				ABE87A281793556400E2A1DA /* DBRecord+ParcelKit.h */,
 				ABE87A291793556400E2A1DA /* DBRecord+ParcelKit.m */,
+				F40475D417BB23CB00AE23B6 /* PKIndexedRelationshipInfo.h */,
+				F40475D517BB23CB00AE23B6 /* PKIndexedRelationshipInfo.m */,
 				ABE87A18179353C800E2A1DA /* Supporting Files */,
 			);
 			path = ParcelKit;
@@ -437,6 +442,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F40475D617BB23CB00AE23B6 /* PKIndexedRelationshipInfo.m in Sources */,
 				ABE87A301793556400E2A1DA /* PKSyncManager.m in Sources */,
 				ABE87A311793556400E2A1DA /* NSManagedObject+ParcelKit.m in Sources */,
 				ABE87A321793556400E2A1DA /* DBRecord+ParcelKit.m in Sources */,

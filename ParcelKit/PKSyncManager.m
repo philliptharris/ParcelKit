@@ -26,6 +26,7 @@
 #import "PKSyncManager.h"
 #import "NSManagedObject+ParcelKit.h"
 #import "DBRecord+ParcelKit.h"
+#import "PKIndexedRelationshipInfo.h"
 
 NSString * const PKDefaultSyncAttributeName = @"syncID";
 static NSUInteger const PKFetchRequestBatchSize = 25;
@@ -35,6 +36,7 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
 @property (nonatomic, strong, readwrite) DBDatastore *datastore;
 @property (nonatomic, strong) NSMutableDictionary *tablesKeyedByEntityName;
 @property (nonatomic) BOOL observing;
+@property (nonatomic, strong) NSMutableArray *indexedRelationships;
 @end
 
 @implementation PKSyncManager
@@ -50,6 +52,7 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
     if (self) {
         _tablesKeyedByEntityName = [[NSMutableDictionary alloc] init];
         _syncAttributeName = PKDefaultSyncAttributeName;
+        _indexedRelationships = [[NSMutableArray alloc] initWithCapacity:0];
     }
     return self;
 }
@@ -82,9 +85,11 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
 
 - (void)setTable:(NSString *)tableID forEntityName:(NSString *)entityName
 {
+    // Assert that the entity has a string attribute named syncID.
     NSEntityDescription *entity = [NSEntityDescription entityForName:entityName inManagedObjectContext:self.managedObjectContext];
     NSAttributeDescription *attributeDescription = [[entity attributesByName] objectForKey:self.syncAttributeName];
     NSAssert([attributeDescription attributeType] == NSStringAttributeType, @"Entity “%@” must contain a string attribute named “%@”", entityName, self.syncAttributeName);
+    
     [self.tablesKeyedByEntityName setObject:tableID forKey:entityName];
 }
 
@@ -118,6 +123,29 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
     return [[self.tablesKeyedByEntityName allKeysForObject:tableID] lastObject];
 }
 
+- (void)entityName:(NSString *)parentEntity hasIndexedToManyRelationship:(NSString *)toManyRel toEntity:(NSString *)childEntity withInverseRelationship:(NSString *)inverseRel andIndexName:(NSString *)indexName {
+    
+    PKIndexedRelationshipInfo *iri = [[PKIndexedRelationshipInfo alloc] init];
+    iri.parentEntity = parentEntity;
+    iri.toManyRel = toManyRel;
+    iri.childEntity = childEntity;
+    iri.inverseRel = inverseRel;
+    iri.indexName = indexName;
+    
+    [self.indexedRelationships addObject:iri];
+}
+
+- (PKIndexedRelationshipInfo *)indexedRelationshipInfoForChildEntity:(NSString *)childEntity {
+    
+    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"childEntity == %@", childEntity];
+    NSArray *results = [self.indexedRelationships filteredArrayUsingPredicate:predicate];
+    if (results && [results count] > 0) {
+        return [results objectAtIndex:0];
+    }
+    else {
+        return nil;
+    }
+}
 
 #pragma mark - Observing methods
 - (BOOL)isObserving
@@ -265,17 +293,35 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
         }
     };
     
-    NSMutableSet *managedObjects = [[NSMutableSet alloc] init];
-    [managedObjects unionSet:[managedObjectContext insertedObjects]];
-    [managedObjects unionSet:[managedObjectContext updatedObjects]];
+    NSMutableSet *managedObjectsInsertedOrUpdated = [[NSMutableSet alloc] init];
+    [managedObjectsInsertedOrUpdated unionSet:[managedObjectContext insertedObjects]];
+    [managedObjectsInsertedOrUpdated unionSet:[managedObjectContext updatedObjects]];
     
-    NSSet *managedObjectsWithoutSyncId = [managedObjects filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"%K == nil", self.syncAttributeName]];
+    NSSet *managedObjectsWithoutSyncId = [managedObjectsInsertedOrUpdated filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"%K == nil", self.syncAttributeName]];
     for (NSManagedObject *managedObject in managedObjectsWithoutSyncId) {
         [managedObject setPrimitiveValue:[[self class] syncID] forKey:self.syncAttributeName];
     };
     
-    for (NSManagedObject *managedObject in managedObjects) {
+    for (NSManagedObject *managedObject in managedObjectsInsertedOrUpdated) {
         [self updateDatastoreWithManagedObject:managedObject];
+    };
+    
+    //
+    // All local changes in core data have now been propogated to the local dropbox datastore
+    // Now we need to sort any DBLists to match the indices
+    //
+    for (NSManagedObject *managedObject in managedObjectsInsertedOrUpdated) {
+        NSString *entityName = [[managedObject entity] name];
+        PKIndexedRelationshipInfo *iri = [self indexedRelationshipInfoForChildEntity:entityName];
+        if (iri) {
+            NSManagedObject *parent = [managedObject valueForKey:iri.inverseRel];
+            NSSet *children = [parent valueForKey:iri.toManyRel];
+            
+            // Get the parent entity
+            // Get the set of child entities
+            // Sort the child entities by index, in an array
+            // Loop through them and sort the DBList
+        }
     };
     
     DBError *error = nil;
