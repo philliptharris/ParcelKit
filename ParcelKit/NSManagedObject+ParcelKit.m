@@ -164,7 +164,7 @@ static NSString * const PKInvalidAttributeValueExceptionFormat = @"“%@.%@” e
                 [relatedObjects minusSet:unrelatedObjects];
                 
                 // ADDING RELATIONSHIPS
-                // Iterate through the DBRecord's DBList's string values representing relationships. Query Core Data for for each object. If the object is found, and this NSMO doesn't have a relationship to that object, give it a relationship to that object.
+                // Iterate through the DBRecord's DBList's string values representing relationships. Query Core Data for each object. If the object is found, and this NSMO doesn't have a relationship to that object, give it a relationship to that object.
                 for (NSString *identifier in recordIdentifiers) {
                     
                     [fetchRequest setPredicate:[NSPredicate predicateWithFormat:@"%K == %@", syncAttributeName, identifier]];
@@ -193,19 +193,19 @@ static NSString * const PKInvalidAttributeValueExceptionFormat = @"“%@.%@” e
             //
             else {
                 
-                id identifier = [bindToThisDBRecord objectForKey:nameOfPropertyInCoreData];
+                id syncIdOfRelatedObject = [bindToThisDBRecord objectForKey:nameOfPropertyInCoreData];
                 
-                if (identifier) {
+                if (syncIdOfRelatedObject) {
                     
-                    if (![identifier isKindOfClass:[NSString class]]) {
-                        if ([identifier respondsToSelector:@selector(stringValue)]) {
-                            identifier = [identifier stringValue];
+                    if (![syncIdOfRelatedObject isKindOfClass:[NSString class]]) {
+                        if ([syncIdOfRelatedObject respondsToSelector:@selector(stringValue)]) {
+                            syncIdOfRelatedObject = [syncIdOfRelatedObject stringValue];
                         } else {
-                            [NSException raise:PKInvalidAttributeValueException format:PKInvalidAttributeValueExceptionFormat, entityName, nameOfPropertyInCoreData, identifier, [NSString class], [identifier class]];
+                            [NSException raise:PKInvalidAttributeValueException format:PKInvalidAttributeValueExceptionFormat, entityName, nameOfPropertyInCoreData, syncIdOfRelatedObject, [NSString class], [syncIdOfRelatedObject class]];
                         }
                     }
                     
-                    [fetchRequest setPredicate:[NSPredicate predicateWithFormat:@"%K == %@", syncAttributeName, identifier]];
+                    [fetchRequest setPredicate:[NSPredicate predicateWithFormat:@"%K == %@", syncAttributeName, syncIdOfRelatedObject]];
                     NSError *error = nil;
                     NSArray *managedObjects = [strongSelf.managedObjectContext executeFetchRequest:fetchRequest error:&error];
                     if (managedObjects) {
@@ -213,6 +213,7 @@ static NSString * const PKInvalidAttributeValueExceptionFormat = @"“%@.%@” e
                         if ([managedObjects count] == 1) {
                             
                             NSManagedObject *relatedObject = managedObjects[0];
+                            
                             if (![[strongSelf valueForKey:nameOfPropertyInCoreData] isEqual:relatedObject]) {
                                 [strongSelf setValue:relatedObject forKey:nameOfPropertyInCoreData];
                             }

@@ -148,21 +148,28 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
 }
 
 #pragma mark - Observing methods
-- (BOOL)isObserving
-{
+- (BOOL)isObserving {
     return self.observing;
 }
 
-- (void)startObserving
-{
+- (void)startObserving {
+    
     if ([self isObserving]) return;
     self.observing = YES;
     
     __weak typeof(self) weakSelf = self;
     [self.datastore addObserver:self block:^ {
         
-        typeof(self) strongSelf = weakSelf; if (!strongSelf) return;
-        if (![strongSelf isObserving]) return;
+        typeof(self) strongSelf = weakSelf;
+        
+        if (!strongSelf) {
+            return;
+        }
+        if (![strongSelf isObserving]) {
+            return;
+        }
+        
+        [strongSelf logDropboxDatastoreStatus];
         
         if (strongSelf.datastore.status & DBDatastoreIncoming) {
             
@@ -182,7 +189,9 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
 
 - (void)stopObserving {
     
-    if (![self isObserving]) return;
+    if (![self isObserving]) {
+        return;
+    }
     self.observing = NO;
     
     [self.datastore removeObserver:self];
@@ -410,6 +419,29 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
     else {
         NSLog(@"Error getting or inserting datatore record: %@", error);
     }
+}
+
+- (void)logDropboxDatastoreStatus {
+    
+    NSMutableString *string = [[NSMutableString alloc] initWithString:@""];
+    
+    if (self.datastore.status & DBDatastoreConnected) {
+        [string appendString:@"DBDatastoreConnected "];
+    }
+    if (self.datastore.status & DBDatastoreIncoming) {
+        [string appendString:@"DBDatastoreIncoming "];
+    }
+    if (self.datastore.status & DBDatastoreOutgoing) {
+        [string appendString:@"DBDatastoreOutgoing "];
+    }
+    if (self.datastore.status & DBDatastoreDownloading) {
+        [string appendString:@"DBDatastoreDownloading "];
+    }
+    if (self.datastore.status & DBDatastoreUploading) {
+        [string appendString:@"DBDatastoreUploading "];
+    }
+    
+    NSLog(@"Dropbox Datastore Status: %@", string);
 }
 
 @end
