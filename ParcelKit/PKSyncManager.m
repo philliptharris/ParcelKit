@@ -135,9 +135,9 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
     [self.indexedRelationships addObject:iri];
 }
 
-- (PKIndexedRelationshipInfo *)indexedRelationshipInfoForChildEntity:(NSString *)childEntity {
+- (PKIndexedRelationshipInfo *)indexedRelationshipInfoForChildEntityName:(NSString *)childEntityName {
     
-    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"childEntity == %@", childEntity];
+    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"childEntity == %@", childEntityName];
     NSArray *results = [self.indexedRelationships filteredArrayUsingPredicate:predicate];
     if (results && [results count] > 0) {
         return [results objectAtIndex:0];
@@ -306,21 +306,81 @@ static NSUInteger const PKFetchRequestBatchSize = 25;
         [self updateDatastoreWithManagedObject:managedObject];
     };
     
-    //
-    // All local changes in core data have now been propogated to the local dropbox datastore
-    // Now we need to sort any DBLists to match the indices
-    //
+    // All local changes in core data have now been propogated to the local dropbox datastore.
+    
+    // Hey Core Data!
+    
+    // Yes, PKSyncManager
+    
+    // Did you change any of the objects that I am trying to keep sorted?
+    
+    // Well, lets see:
+    
+    // We don't have to worry about deleted objects because when a managed object is deleted, the managed objects after will have their indices altered, and thus those objects will show up as updated.
+    
+    NSMutableSet *alreadySorted = [[NSMutableSet alloc] init];
+    
     for (NSManagedObject *managedObject in managedObjectsInsertedOrUpdated) {
+        
         NSString *entityName = [[managedObject entity] name];
-        PKIndexedRelationshipInfo *iri = [self indexedRelationshipInfoForChildEntity:entityName];
-        if (iri) {
-            NSManagedObject *parent = [managedObject valueForKey:iri.inverseRel];
-            NSSet *children = [parent valueForKey:iri.toManyRel];
+        
+        PKIndexedRelationshipInfo *relInfo = [self indexedRelationshipInfoForChildEntityName:entityName];
+        
+        if (!relInfo) {
+            continue;
+        }
+        
+        NSManagedObject *parent = [managedObject valueForKey:relInfo.inverseRel];
+        
+        if (!parent) {
+            continue;
+        }
+        
+        if ([alreadySorted containsObject:parent]) {
+            continue;
+        }
+        
+        [alreadySorted addObject:parent];
+        
+        NSSet *children = [parent valueForKey:relInfo.toManyRel];
+        
+        if (!children) {
+            continue;
+        }
+        
+        NSString *tableID = [self tableForEntityName:entityName];
+        if (!tableID) {
+            continue;
+        }
+        
+        DBTable *table = [self.datastore getTable:tableID];
+        DBError *error = nil;
+        DBRecord *parentRecord = [table getRecord:[parent primitiveValueForKey:self.syncAttributeName] error:&error];
+        if (!parentRecord) {
+            if (error) {
+                NSLog(@"Error getting datastore record: %@", error);
+            }
+            continue;
+        }
+        
+        // Returns the current list at the given field, or returns an empty list if no value is set. If the field has a non-list value, this method will return nil.
+        // Please note that if the empty list is returned, the list won’t appear in the record until you insert an element. If you don’t insert any elements, the field will remain unset.
+        DBList *list = [parentRecord getOrCreateList:relInfo.toManyRel];
+        if (!list) {
+            continue;
+        }
+        
+        NSSortDescriptor *sortDescriptor = [[NSSortDescriptor alloc] initWithKey:@"index" ascending:YES];
+        NSArray *arrayOfChildren = [children sortedArrayUsingDescriptors:@[sortDescriptor]];
+        NSArray *arrayOfSyncIDs = [arrayOfChildren valueForKey:self.syncAttributeName];
+        
+        if ([list count] != [arrayOfSyncIDs count]) {
+            NSLog(@"Error - list count is all jacked up");
+        }
+        
+        for (int i = 0; i < [arrayOfSyncIDs count]; i++) {
             
-            // Get the parent entity
-            // Get the set of child entities
-            // Sort the child entities by index, in an array
-            // Loop through them and sort the DBList
+            
         }
     };
     
